@@ -7,10 +7,10 @@ import java.net.URL;
 
 // Single-threaded fallback mode
 public class DownloadRunnableFallback implements Runnable {
-    private final DownloadMission mMission;
+    private final DownloadMissionImpl mMission;
     //private int mId;
 
-    public DownloadRunnableFallback(DownloadMission mission) {
+    public DownloadRunnableFallback(DownloadMissionImpl mission) {
         if (mission == null) throw new NullPointerException("mission is null");
         //mId = id;
         mMission = mission;
@@ -19,13 +19,13 @@ public class DownloadRunnableFallback implements Runnable {
     @Override
     public void run() {
         try {
-            URL url = new URL(mMission.url);
+            URL url = new URL(mMission.getUrl());
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 
             if (conn.getResponseCode() != 200 && conn.getResponseCode() != 206) {
-                notifyError(DownloadMission.ERROR_SERVER_UNSUPPORTED);
+                notifyError(DownloadMissionImpl.ERROR_SERVER_UNSUPPORTED);
             } else {
-                RandomAccessFile f = new RandomAccessFile(mMission.location + "/" + mMission.name, "rw");
+                RandomAccessFile f = new RandomAccessFile(mMission.getLocation() + "/" + mMission.getName(), "rw");
                 f.seek(0);
                 BufferedInputStream ipt = new BufferedInputStream(conn.getInputStream());
                 byte[] buf = new byte[512];
@@ -45,7 +45,7 @@ public class DownloadRunnableFallback implements Runnable {
                 ipt.close();
             }
         } catch (Exception e) {
-            notifyError(DownloadMission.ERROR_UNKNOWN);
+            notifyError(DownloadMissionImpl.ERROR_UNKNOWN);
         }
 
         if (mMission.errCode == -1 && mMission.running) {

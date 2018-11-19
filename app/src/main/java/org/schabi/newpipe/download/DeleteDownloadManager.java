@@ -9,8 +9,8 @@ import android.support.design.widget.Snackbar;
 import android.view.View;
 
 import org.schabi.newpipe.R;
+import org.schabi.newpipe.downloader.DownloadMission;
 import org.schabi.newpipe.downloader.get.DownloadManager;
-import org.schabi.newpipe.downloader.get.DownloadMission;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -45,11 +45,11 @@ public class DeleteDownloadManager {
     }
 
     public boolean contains(@NonNull DownloadMission mission) {
-        return mPendingMap.contains(mission.url);
+        return mPendingMap.contains(mission.getUrl());
     }
 
     public void add(@NonNull DownloadMission mission) {
-        mPendingMap.add(mission.url);
+        mPendingMap.add(mission.getUrl());
 
         if (mPendingMap.size() == 1) {
             showUndoDeleteSnackbar(mission);
@@ -90,7 +90,7 @@ public class DeleteDownloadManager {
 
         for (int i = 0; i < mDownloadManager.getCount(); i++) {
             DownloadMission mission = mDownloadManager.getMission(i);
-            if (url.equals(mission.url)) {
+            if (url.equals(mission.getUrl())) {
                 showUndoDeleteSnackbar(mission);
                 break;
             }
@@ -98,7 +98,7 @@ public class DeleteDownloadManager {
     }
 
     private void showUndoDeleteSnackbar(@NonNull DownloadMission mission) {
-        final Snackbar snackbar = Snackbar.make(mView, mission.name, Snackbar.LENGTH_INDEFINITE);
+        final Snackbar snackbar = Snackbar.make(mView, mission.getName(), Snackbar.LENGTH_INDEFINITE);
         final Disposable disposable = Observable.timer(3, TimeUnit.SECONDS)
                 .subscribeOn(AndroidSchedulers.mainThread())
                 .subscribe(l -> snackbar.dismiss());
@@ -106,7 +106,7 @@ public class DeleteDownloadManager {
         mDisposableList.add(disposable);
 
         snackbar.setAction(R.string.undo, v -> {
-            mPendingMap.remove(mission.url);
+            mPendingMap.remove(mission.getUrl());
             publishSubject.onNext(mission);
             disposable.dispose();
             snackbar.dismiss();
@@ -120,7 +120,7 @@ public class DeleteDownloadManager {
                             .subscribeOn(Schedulers.io())
                             .subscribe();
                 }
-                mPendingMap.remove(mission.url);
+                mPendingMap.remove(mission.getUrl());
                 snackbar.removeCallback(this);
                 mDisposableList.remove(disposable);
                 showUndoDeleteSnackbar();
@@ -149,7 +149,7 @@ public class DeleteDownloadManager {
 
     private void deletePending(@NonNull DownloadMission mission) {
         for (int i = 0; i < mDownloadManager.getCount(); i++) {
-            if (mission.url.equals(mDownloadManager.getMission(i).url)) {
+            if (mission.getUrl().equals(mDownloadManager.getMission(i).getUrl())) {
                 mDownloadManager.deleteMission(i);
                 break;
             }

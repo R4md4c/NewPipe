@@ -1,9 +1,11 @@
-package org.schabi.newpipe.downloader.get;
+package org.schabi.newpipe.downloader.get.sqlite;
+
+import org.schabi.newpipe.downloader.get.DownloadMissionImpl;
 
 import java.util.List;
 
 /**
- * Provides access to the storage of {@link DownloadMission}s
+ * Provides access to the storage of {@link DownloadMissionImpl}s
  */
 public interface DownloadDataSource {
 
@@ -12,7 +14,7 @@ public interface DownloadDataSource {
      *
      * @return a list of download missions
      */
-    List<DownloadMission> loadMissions();
+    List<DownloadMissionImpl> loadMissions();
 
     /**
      * Add a download mission to the storage
@@ -20,7 +22,7 @@ public interface DownloadDataSource {
      * @param downloadMission the download mission to add
      * @return the identifier of the mission
      */
-    void addMission(DownloadMission downloadMission);
+    void addMission(DownloadMissionImpl downloadMission);
 
     /**
      * Update a download mission which exists in the storage
@@ -28,7 +30,7 @@ public interface DownloadDataSource {
      * @param downloadMission the download mission to update
      * @throws IllegalArgumentException if the mission was not added to storage
      */
-    void updateMission(DownloadMission downloadMission);
+    void updateMission(DownloadMissionImpl downloadMission);
 
 
     /**
@@ -36,5 +38,5 @@ public interface DownloadDataSource {
      *
      * @param downloadMission the mission to delete
      */
-    void deleteMission(DownloadMission downloadMission);
+    void deleteMission(DownloadMissionImpl downloadMission);
 }

@@ -2,8 +2,11 @@ package org.schabi.newpipe.downloader.get;
 
 import android.os.Handler;
 import android.os.Looper;
+import android.support.annotation.NonNull;
+import android.support.annotation.RestrictTo;
 import android.util.Log;
 
+import org.schabi.newpipe.downloader.DownloadMission;
 import org.schabi.newpipe.downloader.util.Utility;
 
 import java.io.File;
@@ -18,75 +21,69 @@ import java.util.Map;
 
 import static org.schabi.newpipe.downloader.BuildConfig.DEBUG;
 
+@RestrictTo(RestrictTo.Scope.LIBRARY)
+public class DownloadMissionImpl implements Serializable, DownloadMission {
+    private static final HashMap<MissionListener, Handler> HANDLER_STORE = new HashMap<>();
 
-public class DownloadMission implements Serializable {
     private static final long serialVersionUID = 0L;
 
-    private static final String TAG = DownloadMission.class.getSimpleName();
+    private static final String TAG = DownloadMissionImpl.class.getSimpleName();
 
-    public interface MissionListener {
-        HashMap<MissionListener, Handler> handlerStore = new HashMap<>();
-
-        void onProgressUpdate(DownloadMission downloadMission, long done, long total);
-
-        void onFinish(DownloadMission downloadMission);
-
-        void onError(DownloadMission downloadMission, int errCode);
-    }
-
-    public static final int ERROR_SERVER_UNSUPPORTED = 206;
-    public static final int ERROR_UNKNOWN = 233;
+    static final int ERROR_SERVER_UNSUPPORTED = 206;
+    static final int ERROR_UNKNOWN = 233;
 
     /**
      * The filename
      */
-    public String name;
+    private String name;
 
     /**
      * The url of the file to download
      */
-    public String url;
+    private String url;
 
     /**
      * The directory to store the download
      */
-    public String location;
+    private String location;
 
     /**
      * Number of blocks the size of {@link DownloadManager#BLOCK_SIZE}
      */
-    public long blocks;
+    long blocks;
 
     /**
      * Number of bytes
      */
-    public long length;
+    long length;
 
     /**
      * Number of bytes downloaded
      */
+    @RestrictTo(RestrictTo.Scope.LIBRARY)
     public long done;
-    public int threadCount = 3;
-    public int finishCount;
+
+    int threadCount = 3;
+    private int finishCount;
     private final List<Long> threadPositions = new ArrayList<>();
-    public final Map<Long, Boolean> blockState = new HashMap<>();
+    private final Map<Long, Boolean> blockState = new HashMap<>();
     public boolean running;
     public boolean finished;
-    public boolean fallback;
+    boolean fallback;
     public int errCode = -1;
     public long timestamp;
 
-    public transient boolean recovered;
+    transient boolean recovered;
 
     private transient ArrayList<WeakReference<MissionListener>> mListeners = new ArrayList<>();
     private transient boolean mWritingToFile;
 
     private static final int NO_IDENTIFIER = -1;
 
-    public DownloadMission() {
+    public DownloadMissionImpl() {
     }
 
-    public DownloadMission(String name, String url, String location) {
+    public DownloadMissionImpl(String name, String url, String location) {
         if (name == null) throw new NullPointerException("name is null");
         if (name.isEmpty()) throw new IllegalArgumentException("name is empty");
         if (url == null) throw new NullPointerException("url is null");
@@ -98,6 +95,45 @@ public class DownloadMission implements Serializable {
         this.location = location;
     }
 
+    @Override
+    public String getName() {
+        return name;
+    }
+
+    @Override
+    public String getUrl() {
+        return url;
+    }
+
+    @Override
+    public long getLength() {
+        return length;
+    }
+
+    @Override
+    public String getLocation() {
+        return location;
+    }
+
+    @Override
+    public boolean isRunning() {
+        return running;
+    }
+
+    @Override
+    public boolean hasFinished() {
+        return finished;
+    }
+
+    @Override
+    public long getDone() {
+        return done;
+    }
+
+    @Override
+    public int getErrorCode() {
+        return errCode;
+    }
 
     private void checkBlock(long block) {
         if (block < 0 || block >= blocks) {
@@ -111,12 +147,12 @@ public class DownloadMission implements Serializable {
      * @param block the block identifier
      * @return true if the block is reserved and false if otherwise
      */
-    public boolean isBlockPreserved(long block) {
+    boolean isBlockPreserved(long block) {
         checkBlock(block);
         return blockState.containsKey(block) ? blockState.get(block) : false;
     }
 
-    public void preserveBlock(long block) {
+    void preserveBlock(long block) {
         checkBlock(block);
         synchronized (blockState) {
             blockState.put(block, true);
@@ -129,7 +165,7 @@ public class DownloadMission implements Serializable {
      * @param threadId the identifier of the thread
      * @param position the download position of the thread
      */
-    public void setPosition(int threadId, long position) {
+    void setPosition(int threadId, long position) {
         threadPositions.set(threadId, position);
     }
 
@@ -139,11 +175,11 @@ public class DownloadMission implements Serializable {
      * @param threadId the identifier of the thread
      * @return the position for the thread
      */
-    public long getPosition(int threadId) {
+    long getPosition(int threadId) {
         return threadPositions.get(threadId);
     }
 
-    public synchronized void notifyProgress(long deltaLen) {
+    synchronized void notifyProgress(long deltaLen) {
         if (!running) return;
 
         if (recovered) {
@@ -163,10 +199,10 @@ public class DownloadMission implements Serializable {
         for (WeakReference<MissionListener> ref : mListeners) {
             final MissionListener listener = ref.get();
             if (listener != null) {
-                MissionListener.handlerStore.get(listener).post(new Runnable() {
+                HANDLER_STORE.get(listener).post(new Runnable() {
                     @Override
                     public void run() {
-                        listener.onProgressUpdate(DownloadMission.this, done, length);
+                        listener.onProgressUpdate(DownloadMissionImpl.this, done, length);
                     }
                 });
             }
@@ -176,7 +212,7 @@ public class DownloadMission implements Serializable {
     /**
      * Called by a download thread when it finished.
      */
-    public synchronized void notifyFinished() {
+    synchronized void notifyFinished() {
         if (errCode > 0) return;
 
         finishCount++;
@@ -204,44 +240,45 @@ public class DownloadMission implements Serializable {
         for (WeakReference<MissionListener> ref : mListeners) {
             final MissionListener listener = ref.get();
             if (listener != null) {
-                MissionListener.handlerStore.get(listener).post(new Runnable() {
+                HANDLER_STORE.get(listener).post(new Runnable() {
                     @Override
                     public void run() {
-                        listener.onFinish(DownloadMission.this);
+                        listener.onFinish(DownloadMissionImpl.this);
                     }
                 });
             }
         }
     }
 
-    public synchronized void notifyError(int err) {
+    synchronized void notifyError(int err) {
         errCode = err;
 
         writeThisToFile();
 
         for (WeakReference<MissionListener> ref : mListeners) {
             final MissionListener listener = ref.get();
-            MissionListener.handlerStore.get(listener).post(new Runnable() {
+            HANDLER_STORE.get(listener).post(new Runnable() {
                 @Override
                 public void run() {
-                    listener.onError(DownloadMission.this, errCode);
+                    listener.onError(DownloadMissionImpl.this, errCode);
                 }
             });
         }
     }
 
-    public synchronized void addListener(MissionListener listener) {
+    public synchronized void addListener(@NonNull MissionListener listener) {
         Handler handler = new Handler(Looper.getMainLooper());
-        MissionListener.handlerStore.put(listener, handler);
+        HANDLER_STORE.put(listener, handler);
         mListeners.add(new WeakReference<>(listener));
     }
 
-    public synchronized void removeListener(MissionListener listener) {
+    public synchronized void removeListener(@NonNull MissionListener listener) {
         for (Iterator<WeakReference<MissionListener>> iterator = mListeners.iterator();
              iterator.hasNext(); ) {
             WeakReference<MissionListener> weakRef = iterator.next();
-            if (listener != null && listener == weakRef.get()) {
+            if (listener == weakRef.get()) {
                 iterator.remove();
+                HANDLER_STORE.remove(listener);
             }
         }
     }
@@ -289,10 +326,10 @@ public class DownloadMission implements Serializable {
     }
 
     /**
-     * Write this {@link DownloadMission} to the meta file asynchronously
+     * Write this {@link DownloadMissionImpl} to the meta file asynchronously
      * if no thread is already running.
      */
-    public void writeThisToFile() {
+    private void writeThisToFile() {
         if (!mWritingToFile) {
             mWritingToFile = true;
             new Thread() {
@@ -306,7 +343,7 @@ public class DownloadMission implements Serializable {
     }
 
     /**
-     * Write this {@link DownloadMission} to the meta file.
+     * Write this {@link DownloadMissionImpl} to the meta file.
      */
     private void doWriteThisToFile() {
         synchronized (blockState) {
@@ -315,8 +352,7 @@ public class DownloadMission implements Serializable {
     }
 
     private void readObject(ObjectInputStream inputStream)
-    throws java.io.IOException, ClassNotFoundException
-    {
+            throws java.io.IOException, ClassNotFoundException {
         inputStream.defaultReadObject();
         mListeners = new ArrayList<>();
     }
@@ -334,7 +370,7 @@ public class DownloadMission implements Serializable {
         return location + "/" + name + ".giga";
     }
 
-    public File getDownloadedFile() {
+    File getDownloadedFile() {
         return new File(location, name);
     }
 

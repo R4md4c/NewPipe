@@ -1,5 +1,7 @@
 package org.schabi.newpipe.downloader.get;
 
+import org.schabi.newpipe.downloader.DownloadMission;
+
 public interface DownloadManager {
     int BLOCK_SIZE = 512 * 1024;
 

@@ -4,6 +4,7 @@ import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.schabi.newpipe.downloader.get.sqlite.DownloadDataSource;
 import org.schabi.newpipe.downloader.util.IntentsProvider;
 
 import java.io.File;
@@ -30,7 +31,7 @@ import static org.mockito.Mockito.when;
 public class DownloadManagerImplTest {
 
     private DownloadManagerImpl downloadManager;
-    private ArrayList<DownloadMission> missions;
+    private ArrayList<DownloadMissionImpl> missions;
 
     @Mock
     private DownloadDataSource downloadDataSource;
@@ -56,13 +57,13 @@ public class DownloadManagerImplTest {
     }
 
 
-    private static DownloadMission generateFinishedDownloadMission() throws IOException {
+    private static DownloadMissionImpl generateFinishedDownloadMission() throws IOException {
         File file = File.createTempFile("newpipetest", ".mp4");
         file.deleteOnExit();
         RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw");
         randomAccessFile.setLength(1000);
         randomAccessFile.close();
-        DownloadMission downloadMission = new DownloadMission(file.getName(),
+        DownloadMissionImpl downloadMission = new DownloadMissionImpl(file.getName(),
                 "http://google.com/?q=how+to+google", file.getParent());
         downloadMission.blocks = 1000;
         downloadMission.done = 1000;
@@ -70,19 +71,19 @@ public class DownloadManagerImplTest {
         return spy(downloadMission);
     }
 
-    private static void assertMissionEquals(String message, DownloadMission expected, DownloadMission actual) {
+    private static void assertMissionEquals(String message, DownloadMissionImpl expected, DownloadMissionImpl actual) {
         if (expected == actual) return;
-        assertEquals(message + ": Name", expected.name, actual.name);
-        assertEquals(message + ": Location", expected.location, actual.location);
-        assertEquals(message + ": Url", expected.url, actual.url);
+        assertEquals(message + ": Name", expected.getName(), actual.getName());
+        assertEquals(message + ": Location", expected.getLocation(), actual.getLocation());
+        assertEquals(message + ": Url", expected.getUrl(), actual.getUrl());
     }
 
     @Test
     public void testThatMissionsAreLoaded() throws IOException {
-        ArrayList<DownloadMission> missions = new ArrayList<>();
+        ArrayList<DownloadMissionImpl> missions = new ArrayList<>();
         long millis = System.currentTimeMillis();
         for (int i = 0; i < 50; ++i) {
-            DownloadMission mission = generateFinishedDownloadMission();
+            DownloadMissionImpl mission = generateFinishedDownloadMission();
             mission.timestamp = millis - i; // reverse order by timestamp
             missions.add(mission);
         }
@@ -102,7 +103,7 @@ public class DownloadManagerImplTest {
     @Ignore
     @Test
     public void startMission() throws Exception {
-        DownloadMission mission = missions.get(0);
+        DownloadMissionImpl mission = missions.get(0);
         mission = spy(mission);
         missions.set(0, mission);
         String url = "https://github.com/favicon.ico";
@@ -116,7 +117,7 @@ public class DownloadManagerImplTest {
 
     @Test
     public void resumeMission() {
-        DownloadMission mission = missions.get(0);
+        DownloadMissionImpl mission = missions.get(0);
         mission.running = true;
         verify(mission, never()).start();
         downloadManager.resumeMission(0);
@@ -128,7 +129,7 @@ public class DownloadManagerImplTest {
 
     @Test
     public void pauseMission() {
-        DownloadMission mission = missions.get(0);
+        DownloadMissionImpl mission = missions.get(0);
         mission.running = false;
         downloadManager.pauseMission(0);
         verify(mission, never()).pause();
@@ -139,7 +140,7 @@ public class DownloadManagerImplTest {
 
     @Test
     public void deleteMission() {
-        DownloadMission mission = missions.get(0);
+        DownloadMissionImpl mission = missions.get(0);
         assertEquals(mission, downloadManager.getMission(0));
         downloadManager.deleteMission(0);
         verify(mission, times(1)).delete();
@@ -160,17 +161,17 @@ public class DownloadManagerImplTest {
 
     @Test
     public void sortByTimestamp() {
-        ArrayList<DownloadMission> downloadMissions = new ArrayList<>();
-        DownloadMission mission = new DownloadMission();
+        ArrayList<DownloadMissionImpl> downloadMissions = new ArrayList<>();
+        DownloadMissionImpl mission = new DownloadMissionImpl();
         mission.timestamp = 0;
 
-        DownloadMission mission1 = new DownloadMission();
+        DownloadMissionImpl mission1 = new DownloadMissionImpl();
         mission1.timestamp = Integer.MAX_VALUE + 1L;
 
-        DownloadMission mission2 = new DownloadMission();
+        DownloadMissionImpl mission2 = new DownloadMissionImpl();
         mission2.timestamp = 2L * Integer.MAX_VALUE;
 
-        DownloadMission mission3 = new DownloadMission();
+        DownloadMissionImpl mission3 = new DownloadMissionImpl();
         mission3.timestamp = 2L * Integer.MAX_VALUE + 5L;
 
 

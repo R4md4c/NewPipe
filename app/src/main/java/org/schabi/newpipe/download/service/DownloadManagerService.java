@@ -14,6 +14,7 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Message;
+import android.support.annotation.NonNull;
 import android.support.v4.app.NotificationCompat.Builder;
 import android.support.v4.content.PermissionChecker;
 import android.util.Log;
@@ -21,10 +22,10 @@ import android.widget.Toast;
 
 import org.schabi.newpipe.R;
 import org.schabi.newpipe.download.DownloadActivity;
-import org.schabi.newpipe.downloader.get.DownloadDataSource;
+import org.schabi.newpipe.downloader.DownloadMission;
 import org.schabi.newpipe.downloader.get.DownloadManager;
 import org.schabi.newpipe.downloader.get.DownloadManagerImpl;
-import org.schabi.newpipe.downloader.get.DownloadMission;
+import org.schabi.newpipe.downloader.get.sqlite.DownloadDataSource;
 import org.schabi.newpipe.downloader.get.sqlite.SQLiteDownloadDataSource;
 import org.schabi.newpipe.settings.NewPipeSettings;
 
@@ -59,7 +60,7 @@ public class DownloadManagerService extends Service {
 
 
     private void notifyMediaScanner(DownloadMission mission) {
-        Uri uri = Uri.parse("file://" + mission.location + "/" + mission.name);
+        Uri uri = Uri.parse("file://" + mission.getLocation() + "/" + mission.getName());
         // notify media scanner on downloaded media file ...
         sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, uri));
     }
@@ -116,7 +117,7 @@ public class DownloadManagerService extends Service {
                         int runningCount = 0;
 
                         for (int i = 0; i < mManager.getCount(); i++) {
-                            if (mManager.getMission(i).running) {
+                            if (mManager.getMission(i).isRunning()) {
                                 runningCount++;
                             }
                         }
@@ -216,8 +217,9 @@ public class DownloadManagerService extends Service {
 
 
     private class MissionListener implements DownloadMission.MissionListener {
+
         @Override
-        public void onProgressUpdate(DownloadMission downloadMission, long done, long total) {
+        public void onProgressUpdate(@NonNull DownloadMission downloadMission, long done, long total) {
             long now = System.currentTimeMillis();
             long delta = now - mLastTimeStamp;
             if (delta > 2000) {
@@ -227,13 +229,13 @@ public class DownloadManagerService extends Service {
         }
 
         @Override
-        public void onFinish(DownloadMission downloadMission) {
+        public void onFinish(@NonNull DownloadMission downloadMission) {
             postUpdateMessage();
             notifyMediaScanner(downloadMission);
         }
 
         @Override
-        public void onError(DownloadMission downloadMission, int errCode) {
+        public void onError(@NonNull DownloadMission downloadMission, int errCode) {
             postUpdateMessage();
         }
     }

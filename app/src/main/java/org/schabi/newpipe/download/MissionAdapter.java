@@ -26,8 +26,8 @@ import android.widget.Toast;
 
 import org.schabi.newpipe.R;
 import org.schabi.newpipe.download.service.DownloadManagerService;
+import org.schabi.newpipe.downloader.DownloadMission;
 import org.schabi.newpipe.downloader.get.DownloadManager;
-import org.schabi.newpipe.downloader.get.DownloadMission;
 import org.schabi.newpipe.downloader.util.Utility;
 
 import java.io.File;
@@ -96,7 +96,7 @@ public class MissionAdapter extends RecyclerView.Adapter<MissionAdapter.ViewHold
 		h.itemView.setOnClickListener(new View.OnClickListener() {
             @Override
 			public void onClick(View v) {
-                if(h.mission.finished) viewFile(h);
+                if (h.mission.hasFinished()) viewFile(h);
 			}
 		});
 
@@ -122,11 +122,11 @@ public class MissionAdapter extends RecyclerView.Adapter<MissionAdapter.ViewHold
         h.mission = ms;
         h.position = pos;
 
-        Utility.FileType type = Utility.getFileType(ms.name);
+        Utility.FileType type = Utility.getFileType(ms.getName());
 
         h.icon.setImageResource(Utility.getIconForFileType(type));
-        h.name.setText(ms.name);
-        h.size.setText(Utility.formatBytes(ms.length));
+        h.name.setText(ms.getName());
+        h.size.setText(Utility.formatBytes(ms.getLength()));
 
         h.progress = new ProgressDrawable(mContext, Utility.getBackgroundForFileType(type), Utility.getForegroundForFileType(type));
         ViewCompat.setBackground(h.bkg, h.progress);
@@ -161,17 +161,17 @@ public class MissionAdapter extends RecyclerView.Adapter<MissionAdapter.ViewHold
         }
 
         if (h.lastDone == -1) {
-            h.lastDone = h.mission.done;
+            h.lastDone = h.mission.getDone();
         }
 
         long deltaTime = now - h.lastTimeStamp;
-        long deltaDone = h.mission.done - h.lastDone;
+        long deltaDone = h.mission.getDone() - h.lastDone;
 
         if (deltaTime == 0 || deltaTime > 1000 || finished) {
-            if (h.mission.errCode > 0) {
+            if (h.mission.getErrorCode() > 0) {
                 h.status.setText(R.string.msg_error);
             } else {
-                float progress = (float) h.mission.done / h.mission.length;
+                float progress = (float) h.mission.getDone() / h.mission.getLength();
                 h.status.setText(String.format(Locale.US, "%.2f%%", progress * 100));
                 h.progress.setProgress(progress);
             }
@@ -180,12 +180,12 @@ public class MissionAdapter extends RecyclerView.Adapter<MissionAdapter.ViewHold
         if (deltaTime > 1000 && deltaDone > 0) {
             float speed = (float) deltaDone / deltaTime;
             String speedStr = Utility.formatSpeed(speed * 1000);
-            String sizeStr = Utility.formatBytes(h.mission.length);
+            String sizeStr = Utility.formatBytes(h.mission.getLength());
 
             h.size.setText(sizeStr + " " + speedStr);
 
             h.lastTimeStamp = now;
-            h.lastDone = h.mission.done;
+            h.lastDone = h.mission.getDone();
         }
     }
 
@@ -206,9 +206,9 @@ public class MissionAdapter extends RecyclerView.Adapter<MissionAdapter.ViewHold
         delete.setVisible(false);
         checksum.setVisible(false);
 
-        if (!h.mission.finished) {
-            if (!h.mission.running) {
-                if (h.mission.errCode == -1) {
+        if (!h.mission.hasFinished()) {
+            if (!h.mission.isRunning()) {
+                if (h.mission.getErrorCode() == -1) {
                     start.setVisible(true);
                 }
 
@@ -244,7 +244,7 @@ public class MissionAdapter extends RecyclerView.Adapter<MissionAdapter.ViewHold
                     case R.id.md5:
                     case R.id.sha1:
                         DownloadMission mission = mItemList.get(h.position);
-                        new ChecksumTask(mContext).execute(mission.location + "/" + mission.name, ALGORITHMS.get(id));
+                        new ChecksumTask(mContext).execute(mission.getLocation() + "/" + mission.getName(), ALGORITHMS.get(id));
                         return true;
                     default:
                         return false;
@@ -256,14 +256,14 @@ public class MissionAdapter extends RecyclerView.Adapter<MissionAdapter.ViewHold
     }
 
     private boolean viewFile(ViewHolder h) {
-        File f = new File(h.mission.location, h.mission.name);
-        String ext = Utility.getFileExt(h.mission.name);
+        File f = new File(h.mission.getLocation(), h.mission.getName());
+        String ext = Utility.getFileExt(h.mission.getName());
 
         Log.d(TAG, "Viewing file: " + f.getAbsolutePath() + " ext: " + ext);
 
         if (ext == null) {
             Log.w(TAG, "Can't view file because it has no extension: " +
-                    h.mission.name);
+                    h.mission.getName());
             return true;
         }
 
@@ -336,23 +336,23 @@ public class MissionAdapter extends RecyclerView.Adapter<MissionAdapter.ViewHold
         }
 
         @Override
-        public void onProgressUpdate(DownloadMission downloadMission, long done, long total) {
+        public void onProgressUpdate(@NonNull DownloadMission downloadMission, long done, long total) {
             mAdapter.updateProgress(mHolder);
         }
 
         @Override
-        public void onFinish(DownloadMission downloadMission) {
+        public void onFinish(@NonNull DownloadMission downloadMission) {
             //mAdapter.mManager.deleteMission(mHolder.position);
             // TODO Notification
             //mAdapter.notifyDataSetChanged();
             if (mHolder.mission != null) {
-                mHolder.size.setText(Utility.formatBytes(mHolder.mission.length));
+                mHolder.size.setText(Utility.formatBytes(mHolder.mission.getLength()));
                 mAdapter.updateProgress(mHolder, true);
             }
         }
 
         @Override
-        public void onError(DownloadMission downloadMission, int errCode) {
+        public void onError(@NonNull DownloadMission downloadMission, int errCode) {
             mAdapter.updateProgress(mHolder);
         }
 

@@ -6,8 +6,7 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.util.Log;
 
-import org.schabi.newpipe.downloader.get.DownloadDataSource;
-import org.schabi.newpipe.downloader.get.DownloadMission;
+import org.schabi.newpipe.downloader.get.DownloadMissionImpl;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,8 +29,8 @@ public class SQLiteDownloadDataSource implements DownloadDataSource {
     }
 
     @Override
-    public List<DownloadMission> loadMissions() {
-        ArrayList<DownloadMission> result;
+    public List<DownloadMissionImpl> loadMissions() {
+        ArrayList<DownloadMissionImpl> result;
         SQLiteDatabase database = downloadMissionSQLiteHelper.getReadableDatabase();
         Cursor cursor = database.query(MISSIONS_TABLE_NAME, null, null,
                 null, null, null, DownloadMissionSQLiteHelper.KEY_TIMESTAMP);
@@ -46,7 +45,7 @@ public class SQLiteDownloadDataSource implements DownloadDataSource {
     }
 
     @Override
-    public void addMission(DownloadMission downloadMission) {
+    public void addMission(DownloadMissionImpl downloadMission) {
         if (downloadMission == null) throw new NullPointerException("downloadMission is null");
         SQLiteDatabase database = downloadMissionSQLiteHelper.getWritableDatabase();
         ContentValues values = DownloadMissionSQLiteHelper.getValuesOfMission(downloadMission);
@@ -54,26 +53,26 @@ public class SQLiteDownloadDataSource implements DownloadDataSource {
     }
 
     @Override
-    public void updateMission(DownloadMission downloadMission) {
+    public void updateMission(DownloadMissionImpl downloadMission) {
         if (downloadMission == null) throw new NullPointerException("downloadMission is null");
         SQLiteDatabase database = downloadMissionSQLiteHelper.getWritableDatabase();
         ContentValues values = DownloadMissionSQLiteHelper.getValuesOfMission(downloadMission);
         String whereClause = KEY_LOCATION + " = ? AND " +
                 KEY_NAME + " = ?";
         int rowsAffected = database.update(MISSIONS_TABLE_NAME, values,
-                whereClause, new String[]{downloadMission.location, downloadMission.name});
+                whereClause, new String[]{downloadMission.getLocation(), downloadMission.getName()});
         if (rowsAffected != 1) {
             Log.e(TAG, "Expected 1 row to be affected by update but got " + rowsAffected);
         }
     }
 
     @Override
-    public void deleteMission(DownloadMission downloadMission) {
+    public void deleteMission(DownloadMissionImpl downloadMission) {
         if (downloadMission == null) throw new NullPointerException("downloadMission is null");
         SQLiteDatabase database = downloadMissionSQLiteHelper.getWritableDatabase();
         database.delete(MISSIONS_TABLE_NAME,
                 KEY_LOCATION + " = ? AND " +
                         KEY_NAME + " = ?",
-                new String[]{downloadMission.location, downloadMission.name});
+                new String[]{downloadMission.getLocation(), downloadMission.getName()});
     }
 }

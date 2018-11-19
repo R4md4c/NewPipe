@@ -15,10 +15,10 @@ import static org.schabi.newpipe.downloader.BuildConfig.DEBUG;
 public class DownloadRunnable implements Runnable {
     private static final String TAG = DownloadRunnable.class.getSimpleName();
 
-    private final DownloadMission mMission;
+    private final DownloadMissionImpl mMission;
     private final int mId;
 
-    public DownloadRunnable(DownloadMission mission, int id) {
+    public DownloadRunnable(DownloadMissionImpl mission, int id) {
         if (mission == null) throw new NullPointerException("mission is null");
         mMission = mission;
         mId = id;
@@ -80,7 +80,7 @@ public class DownloadRunnable implements Runnable {
             int total = 0;
 
             try {
-                URL url = new URL(mMission.url);
+                URL url = new URL(mMission.getUrl());
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestProperty("Range", "bytes=" + start + "-" + end);
 
@@ -91,7 +91,7 @@ public class DownloadRunnable implements Runnable {
 
                 // A server may be ignoring the range request
                 if (conn.getResponseCode() != 206) {
-                    mMission.errCode = DownloadMission.ERROR_SERVER_UNSUPPORTED;
+                    mMission.errCode = DownloadMissionImpl.ERROR_SERVER_UNSUPPORTED;
                     notifyError();
 
                     if (DEBUG) {
@@ -101,7 +101,7 @@ public class DownloadRunnable implements Runnable {
                     break;
                 }
 
-                RandomAccessFile f = new RandomAccessFile(mMission.location + "/" + mMission.name, "rw");
+                RandomAccessFile f = new RandomAccessFile(mMission.getLocation() + "/" + mMission.getName(), "rw");
                 f.seek(start);
                 java.io.InputStream ipt = conn.getInputStream();
                 byte[] buf = new byte[64*1024];
@@ -163,7 +163,7 @@ public class DownloadRunnable implements Runnable {
 
     private void notifyError() {
         synchronized (mMission) {
-            mMission.notifyError(DownloadMission.ERROR_SERVER_UNSUPPORTED);
+            mMission.notifyError(DownloadMissionImpl.ERROR_SERVER_UNSUPPORTED);
             mMission.pause();
         }
     }

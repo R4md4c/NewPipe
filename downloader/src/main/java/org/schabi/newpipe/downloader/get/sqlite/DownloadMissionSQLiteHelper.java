@@ -6,12 +6,12 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
-import org.schabi.newpipe.downloader.get.DownloadMission;
+import org.schabi.newpipe.downloader.get.DownloadMissionImpl;
 
 /**
- * SqliteHelper to store {@link DownloadMission}
+ * SqliteHelper to store {@link DownloadMissionImpl}
  */
-public class DownloadMissionSQLiteHelper extends SQLiteOpenHelper {
+class DownloadMissionSQLiteHelper extends SQLiteOpenHelper {
 
 
     private final String TAG = "DownloadMissionHelper";
@@ -68,12 +68,12 @@ public class DownloadMissionSQLiteHelper extends SQLiteOpenHelper {
      * @param downloadMission the download mission
      * @return the content values
      */
-    public static ContentValues getValuesOfMission(DownloadMission downloadMission) {
+    public static ContentValues getValuesOfMission(DownloadMissionImpl downloadMission) {
         ContentValues values = new ContentValues();
-        values.put(KEY_URL, downloadMission.url);
-        values.put(KEY_LOCATION, downloadMission.location);
-        values.put(KEY_NAME, downloadMission.name);
-        values.put(KEY_DONE, downloadMission.done);
+        values.put(KEY_URL, downloadMission.getUrl());
+        values.put(KEY_LOCATION, downloadMission.getLocation());
+        values.put(KEY_NAME, downloadMission.getName());
+        values.put(KEY_DONE, downloadMission.hasFinished());
         values.put(KEY_TIMESTAMP, downloadMission.timestamp);
         return values;
     }
@@ -88,13 +88,13 @@ public class DownloadMissionSQLiteHelper extends SQLiteOpenHelper {
         // Currently nothing to do
     }
 
-    public static DownloadMission getMissionFromCursor(Cursor cursor) {
+    public static DownloadMissionImpl getMissionFromCursor(Cursor cursor) {
         if (cursor == null) throw new NullPointerException("cursor is null");
         int pos;
         String name = cursor.getString(cursor.getColumnIndexOrThrow(KEY_NAME));
         String location = cursor.getString(cursor.getColumnIndexOrThrow(KEY_LOCATION));
         String url = cursor.getString(cursor.getColumnIndexOrThrow(KEY_URL));
-        DownloadMission mission = new DownloadMission(name, url, location);
+        DownloadMissionImpl mission = new DownloadMissionImpl(name, url, location);
         mission.done = cursor.getLong(cursor.getColumnIndexOrThrow(KEY_DONE));
         mission.timestamp = cursor.getLong(cursor.getColumnIndexOrThrow(KEY_TIMESTAMP));
         mission.finished = true;

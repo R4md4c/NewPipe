@@ -6,6 +6,7 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.util.Log;
 
+import org.schabi.newpipe.downloader.get.sqlite.DownloadDataSource;
 import org.schabi.newpipe.downloader.util.IntentsProvider;
 import org.schabi.newpipe.downloader.util.Utility;
 
@@ -28,7 +29,7 @@ public class DownloadManagerImpl implements DownloadManager {
     private static final String TAG = DownloadManagerImpl.class.getSimpleName();
     private final DownloadDataSource mDownloadDataSource;
 
-    private final ArrayList<DownloadMission> mMissions = new ArrayList<>();
+    private final ArrayList<DownloadMissionImpl> mMissions = new ArrayList<>();
     @NonNull
     private final Context context;
 
@@ -63,7 +64,7 @@ public class DownloadManagerImpl implements DownloadManager {
 
     @Override
     public int startMission(String url, String location, String name, boolean isAudio, int threads) {
-        DownloadMission existingMission = getMissionByLocation(location, name);
+        DownloadMissionImpl existingMission = getMissionByLocation(location, name);
         if (existingMission != null) {
             // Already downloaded or downloading
             if (existingMission.finished) {
@@ -81,7 +82,7 @@ public class DownloadManagerImpl implements DownloadManager {
             }
         }
 
-        DownloadMission mission = new DownloadMission(name, url, location);
+        DownloadMissionImpl mission = new DownloadMissionImpl(name, url, location);
         mission.timestamp = System.currentTimeMillis();
         mission.threadCount = threads;
         mission.addListener(new MissionListener(mission));
@@ -91,7 +92,7 @@ public class DownloadManagerImpl implements DownloadManager {
 
     @Override
     public void resumeMission(int i) {
-        DownloadMission d = getMission(i);
+        DownloadMissionImpl d = getMission(i);
         if (!d.running && d.errCode == -1) {
             d.start();
         }
@@ -99,7 +100,7 @@ public class DownloadManagerImpl implements DownloadManager {
 
     @Override
     public void pauseMission(int i) {
-        DownloadMission d = getMission(i);
+        DownloadMissionImpl d = getMission(i);
         if (d.running) {
             d.pause();
         }
@@ -107,7 +108,7 @@ public class DownloadManagerImpl implements DownloadManager {
 
     @Override
     public void deleteMission(int i) {
-        DownloadMission mission = getMission(i);
+        DownloadMissionImpl mission = getMission(i);
         if (mission.finished) {
             mDownloadDataSource.deleteMission(mission);
         }
@@ -128,10 +129,10 @@ public class DownloadManagerImpl implements DownloadManager {
      * Sort a list of mission by its timestamp. Oldest first
      * @param missions the missions to sort
      */
-    static void sortByTimestamp(List<DownloadMission> missions) {
-        Collections.sort(missions, new Comparator<DownloadMission>() {
+    static void sortByTimestamp(List<DownloadMissionImpl> missions) {
+        Collections.sort(missions, new Comparator<DownloadMissionImpl>() {
             @Override
-            public int compare(DownloadMission o1, DownloadMission o2) {
+            public int compare(DownloadMissionImpl o1, DownloadMissionImpl o2) {
                 return Long.compare(o1.timestamp, o2.timestamp);
             }
         });
@@ -141,7 +142,7 @@ public class DownloadManagerImpl implements DownloadManager {
      * Loads finished missions from the data source
      */
     private void loadFinishedMissions() {
-        List<DownloadMission> finishedMissions = mDownloadDataSource.loadMissions();
+        List<DownloadMissionImpl> finishedMissions = mDownloadDataSource.loadMissions();
         if (finishedMissions == null) {
             finishedMissions = new ArrayList<>();
         }
@@ -149,7 +150,7 @@ public class DownloadManagerImpl implements DownloadManager {
         sortByTimestamp(finishedMissions);
 
         mMissions.ensureCapacity(mMissions.size() + finishedMissions.size());
-        for (DownloadMission mission : finishedMissions) {
+        for (DownloadMissionImpl mission : finishedMissions) {
             File downloadedFile = mission.getDownloadedFile();
             if (!downloadedFile.isFile()) {
                 if (DEBUG) {
@@ -179,7 +180,7 @@ public class DownloadManagerImpl implements DownloadManager {
 
             for (File sub : subs) {
                 if (sub.isFile() && sub.getName().endsWith(".giga")) {
-                    DownloadMission mis = Utility.readFromFile(sub.getAbsolutePath());
+                    DownloadMissionImpl mis = Utility.readFromFile(sub.getAbsolutePath());
                     if (mis != null) {
                         if (mis.finished) {
                             if (!sub.delete()) {
@@ -198,7 +199,7 @@ public class DownloadManagerImpl implements DownloadManager {
     }
 
     @Override
-    public DownloadMission getMission(int i) {
+    public DownloadMissionImpl getMission(int i) {
         return mMissions.get(i);
     }
 
@@ -207,10 +208,10 @@ public class DownloadManagerImpl implements DownloadManager {
         return mMissions.size();
     }
 
-    private int insertMission(DownloadMission mission) {
+    private int insertMission(DownloadMissionImpl mission) {
         int i = -1;
 
-        DownloadMission m = null;
+        DownloadMissionImpl m = null;
 
         if (mMissions.size() > 0) {
             do {
@@ -236,9 +237,9 @@ public class DownloadManagerImpl implements DownloadManager {
      */
     private
     @Nullable
-    DownloadMission getMissionByLocation(String location, String name) {
-        for (DownloadMission mission : mMissions) {
-            if (location.equals(mission.location) && name.equals(mission.name)) {
+    DownloadMissionImpl getMissionByLocation(String location, String name) {
+        for (DownloadMissionImpl mission : mMissions) {
+            if (location.equals(mission.getLocation()) && name.equals(mission.getName())) {
                 return mission;
             }
         }
@@ -302,10 +303,10 @@ public class DownloadManagerImpl implements DownloadManager {
     }
 
     private class Initializer extends Thread {
-        private final DownloadMission mission;
+        private final DownloadMissionImpl mission;
         private final Handler handler;
 
-        public Initializer(DownloadMission mission) {
+        public Initializer(DownloadMissionImpl mission) {
             this.mission = mission;
             this.handler = new Handler();
         }
@@ -313,19 +314,19 @@ public class DownloadManagerImpl implements DownloadManager {
         @Override
         public void run() {
             try {
-                URL url = new URL(mission.url);
+                URL url = new URL(mission.getUrl());
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 mission.length = conn.getContentLength();
 
                 if (mission.length <= 0) {
-                    mission.errCode = DownloadMission.ERROR_SERVER_UNSUPPORTED;
-                    //mission.notifyError(DownloadMission.ERROR_SERVER_UNSUPPORTED);
+                    mission.errCode = DownloadMissionImpl.ERROR_SERVER_UNSUPPORTED;
+                    //mission.notifyError(DownloadMissionImpl.ERROR_SERVER_UNSUPPORTED);
                     return;
                 }
 
                 // Open again
                 conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestProperty("Range", "bytes=" + (mission.length - 10) + "-" + mission.length);
+                conn.setRequestProperty("Range", "bytes=" + (mission.getLength() - 10) + "-" + mission.length);
 
                 if (conn.getResponseCode() != 206) {
                     // Fallback to single thread if no partial content support
@@ -355,9 +356,9 @@ public class DownloadManagerImpl implements DownloadManager {
                 }
 
 
-                new File(mission.location).mkdirs();
-                new File(mission.location + "/" + mission.name).createNewFile();
-                RandomAccessFile af = new RandomAccessFile(mission.location + "/" + mission.name, "rw");
+                new File(mission.getLocation()).mkdirs();
+                new File(mission.getLocation() + "/" + mission.getName()).createNewFile();
+                RandomAccessFile af = new RandomAccessFile(mission.getLocation() + "/" + mission.getName(), "rw");
                 af.setLength(mission.length);
                 af.close();
 
@@ -379,26 +380,27 @@ public class DownloadManagerImpl implements DownloadManager {
     /**
      * Waits for mission to finish to add it to the {@link #mDownloadDataSource}
      */
-    private class MissionListener implements DownloadMission.MissionListener {
-        private final DownloadMission mMission;
+    private class MissionListener implements DownloadMissionImpl.MissionListener {
+        private final DownloadMissionImpl mMission;
 
-        private MissionListener(DownloadMission mission) {
+        private MissionListener(DownloadMissionImpl mission) {
             if (mission == null) throw new NullPointerException("mission is null");
             // Could the mission be passed in onFinish()?
             mMission = mission;
         }
 
         @Override
-        public void onProgressUpdate(DownloadMission downloadMission, long done, long total) {
+        public void onProgressUpdate(@NonNull org.schabi.newpipe.downloader.DownloadMission downloadMission, long done, long total) {
         }
 
         @Override
-        public void onFinish(DownloadMission downloadMission) {
+        public void onError(@NonNull org.schabi.newpipe.downloader.DownloadMission downloadMission, int errCode) {
+
+        }
+
+        @Override
+        public void onFinish(@NonNull org.schabi.newpipe.downloader.DownloadMission downloadMission) {
             mDownloadDataSource.addMission(mMission);
-        }
-
-        @Override
-        public void onError(DownloadMission downloadMission, int errCode) {
         }
     }
 }
